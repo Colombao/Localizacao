@@ -8,25 +8,56 @@ export default function Home() {
     longitude: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Estratégia de fallback por IP
+  const getLocationByIP = async () => {
+    try {
+      const response = await fetch("https://ipapi.co/json/");
+      const data = await response.json();
+      setLocation({ latitude: data.latitude, longitude: data.longitude });
+      await sendToBackend(data.latitude, data.longitude);
+    } catch (ipError) {
+      // setError("Não foi possível obter localização aproximada");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const sendToBackend = async (lat: number, lon: number) => {
+    try {
+      await fetch("/api/localizacao", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ latitude: lat, longitude: lon }),
+      });
+    } catch (apiError) {
+      console.error("Erro ao enviar localização:", apiError);
+    }
+  };
 
   useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          setLocation({ latitude, longitude });
+    const handleGeolocation = async () => {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            setLocation({ latitude, longitude });
+            await sendToBackend(latitude, longitude);
+            setIsLoading(false);
+          },
+          async (error) => {
+            // Se negar a geolocalização, tenta por IP
+            await getLocationByIP();
+            // setError("Localização aproximada via IP (precisão menor)");
+          }
+        );
+      } else {
+        await getLocationByIP();
+      }
+    };
 
-          await fetch("/api/localizacao", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ latitude, longitude }),
-          });
-        },
-        (error) => setError(error.message)
-      );
-    } else {
-      setError("Geolocalização não suportada pelo navegador.");
-    }
+    handleGeolocation();
   }, []);
 
   return (
