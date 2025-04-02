@@ -1,40 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export default function Home() {
   const [location, setLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null); // Renomeado para errorMessage
   const [isLoading, setIsLoading] = useState(true);
 
   // Estratégia de fallback por IP
-  const getLocationByIP = async () => {
+  const getLocationByIP = useCallback(async () => {
+    // Adicionado useCallback
     try {
       const response = await fetch("https://ipapi.co/json/");
       const data = await response.json();
       setLocation({ latitude: data.latitude, longitude: data.longitude });
       await sendToBackend(data.latitude, data.longitude);
-    } catch (ipError) {
-      // setError("Não foi possível obter localização aproximada");
+    } catch (error) {
+      // Removido ipError não utilizado
+      setErrorMessage("Não foi possível obter localização aproximada");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const sendToBackend = async (lat: number, lon: number) => {
+  const sendToBackend = useCallback(async (lat: number, lon: number) => {
     try {
       await fetch("/api/localizacao", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ latitude: lat, longitude: lon }),
       });
-    } catch (apiError) {
-      console.error("Erro ao enviar localização:", apiError);
+    } catch (error) {
+      // Removido apiError não utilizado
+      console.error("Erro ao enviar localização:", error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const handleGeolocation = async () => {
@@ -47,9 +50,9 @@ export default function Home() {
             setIsLoading(false);
           },
           async (error) => {
-            // Se negar a geolocalização, tenta por IP
+            // Mantido para tratamento de erro
             await getLocationByIP();
-            // setError("Localização aproximada via IP (precisão menor)");
+            setErrorMessage("Localização aproximada via IP (precisão menor)");
           }
         );
       } else {
@@ -58,7 +61,7 @@ export default function Home() {
     };
 
     handleGeolocation();
-  }, []);
+  }, [getLocationByIP, sendToBackend]); // Adicionadas dependências
 
   return (
     <div className="flex items-center justify-center h-screen">
@@ -69,7 +72,6 @@ export default function Home() {
         ) : (
           <p>Gerando Comprovante...</p>
         )}
-        {error && <p className="text-red-500">{error}</p>}
       </div>
     </div>
   );
