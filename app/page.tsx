@@ -7,24 +7,8 @@ export default function Home() {
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null); // Renomeado para errorMessage
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Estratégia de fallback por IP
-  const getLocationByIP = useCallback(async () => {
-    // Adicionado useCallback
-    try {
-      const response = await fetch("https://ipapi.co/json/");
-      const data = await response.json();
-      setLocation({ latitude: data.latitude, longitude: data.longitude });
-      await sendToBackend(data.latitude, data.longitude);
-    } catch (error) {
-      // Removido ipError não utilizado
-      setErrorMessage("Não foi possível obter localização aproximada");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   const sendToBackend = useCallback(async (lat: number, lon: number) => {
     try {
@@ -34,34 +18,49 @@ export default function Home() {
         body: JSON.stringify({ latitude: lat, longitude: lon }),
       });
     } catch (error) {
-      // Removido apiError não utilizado
       console.error("Erro ao enviar localização:", error);
     }
   }, []);
 
+  const getLocationByIP = useCallback(async () => {
+    try {
+      const response = await fetch("https://ipapi.co/json/");
+      const data = await response.json();
+      setLocation({ latitude: data.latitude, longitude: data.longitude });
+      await sendToBackend(data.latitude, data.longitude);
+    } catch {
+      setErrorMessage("Não foi possível obter localização aproximada");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [sendToBackend]); // Adicionada dependência
+
   useEffect(() => {
     const handleGeolocation = async () => {
-      if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const { latitude, longitude } = position.coords;
-            setLocation({ latitude, longitude });
-            await sendToBackend(latitude, longitude);
-            setIsLoading(false);
-          },
-          async (error) => {
-            // Mantido para tratamento de erro
-            await getLocationByIP();
-            setErrorMessage("Localização aproximada via IP (precisão menor)");
-          }
-        );
-      } else {
-        await getLocationByIP();
+      try {
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              const { latitude, longitude } = position.coords;
+              setLocation({ latitude, longitude });
+              await sendToBackend(latitude, longitude);
+              setIsLoading(false);
+            },
+            async () => {
+              await getLocationByIP();
+              setErrorMessage("Localização aproximada via IP (precisão menor)");
+            }
+          );
+        } else {
+          await getLocationByIP();
+        }
+      } catch {
+        setErrorMessage("Erro ao obter localização");
       }
     };
 
     handleGeolocation();
-  }, [getLocationByIP, sendToBackend]); // Adicionadas dependências
+  }, [getLocationByIP, sendToBackend]);
 
   return (
     <div className="flex items-center justify-center h-screen">
