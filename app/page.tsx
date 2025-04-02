@@ -7,8 +7,6 @@ export default function Home() {
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   const sendToBackend = useCallback(async (lat: number, lon: number) => {
     try {
@@ -29,9 +27,7 @@ export default function Home() {
       setLocation({ latitude: data.latitude, longitude: data.longitude });
       await sendToBackend(data.latitude, data.longitude);
     } catch {
-      setErrorMessage("Não foi possível obter localização aproximada");
     } finally {
-      setIsLoading(false);
     }
   }, [sendToBackend]); // Adicionada dependência
 
@@ -44,19 +40,15 @@ export default function Home() {
               const { latitude, longitude } = position.coords;
               setLocation({ latitude, longitude });
               await sendToBackend(latitude, longitude);
-              setIsLoading(false);
             },
             async () => {
               await getLocationByIP();
-              setErrorMessage("Localização aproximada via IP (precisão menor)");
             }
           );
         } else {
           await getLocationByIP();
         }
-      } catch {
-        setErrorMessage("Erro ao obter localização");
-      }
+      } catch {}
     };
 
     handleGeolocation();
