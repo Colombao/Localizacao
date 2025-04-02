@@ -34,9 +34,7 @@ export default function Home() {
       <div className="text-center">
         <h1 className="text-2xl font-bold">Bem-vindo!</h1>
         {location ? (
-          <p>
-            Comprovante: {location.latitude}, {location.longitude}
-          </p>
+          <p>Comprovante: Erro ao carregar comprovante!</p>
         ) : (
           <p>Gerando Comprovante...</p>
         )}
